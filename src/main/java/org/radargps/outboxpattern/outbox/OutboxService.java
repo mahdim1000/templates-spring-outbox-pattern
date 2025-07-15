@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
 
 @Service
 public class OutboxService {
@@ -34,7 +36,7 @@ public class OutboxService {
 
     @Transactional
     public void processPendingMessage() {
-        var messages = outboxRepository.findPendingMessage(batchSize);
+        var messages = outboxRepository.findPendingMessage(batchSize, LocalDateTime.now());
         for (var message : messages) {
             try {
                 eventPublisher.publish(message.getTopic(), message.getPayload());
@@ -47,7 +49,7 @@ public class OutboxService {
 
     @Transactional
     public void processFailedMessage() {
-        var messages = outboxRepository.findFailedMessages(batchSize);
+        var messages = outboxRepository.findFailedMessages(batchSize, LocalDateTime.now());
         for (var message : messages) {
             try {
                 eventPublisher.publish(message.getTopic(), message.getPayload());

@@ -45,6 +45,7 @@ public class Outbox {
 
     public void handlePublishSuccess() {
         setStatus(Status.PUBLISHED);
+        setPublishedAt(LocalDateTime.now());
     }
 
     // setter
@@ -52,9 +53,15 @@ public class Outbox {
         this.id = id;
     }
     private void setTopic(String topic) {
+        if (topic == null || topic.isEmpty()) {
+            throw new IllegalArgumentException("Topic cannot be null or empty");
+        }
         this.topic = topic;
     }
     private void setPayload(String payload) {
+        if (payload == null || payload.isEmpty()) {
+            throw new IllegalArgumentException("Payload cannot be null or empty");
+        }
         this.payload = payload;
     }
     private void setStatus(Status status) {
@@ -108,5 +115,5 @@ public class Outbox {
         return publishedAt;
     }
 
-    enum Status {PENDING, PUBLISHED, FAILED}
+    public enum Status {PENDING, PUBLISHED, FAILED}
 }
