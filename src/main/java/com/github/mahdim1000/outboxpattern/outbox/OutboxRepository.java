@@ -1,4 +1,4 @@
-package org.radargps.outboxpattern.outbox;
+package com.github.mahdim1000.outboxpattern.outbox;
 
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;

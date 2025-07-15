@@ -1,4 +1,4 @@
-package org.radargps.outboxpattern;
+package com.github.mahdim1000.outboxpattern;
 
 import org.springframework.stereotype.Component;
 

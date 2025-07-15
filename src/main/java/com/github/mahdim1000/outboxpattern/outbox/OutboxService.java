@@ -1,8 +1,8 @@
-package org.radargps.outboxpattern.outbox;
+package com.github.mahdim1000.outboxpattern.outbox;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.radargps.outboxpattern.EventPublisher;
+import com.github.mahdim1000.outboxpattern.EventPublisher;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

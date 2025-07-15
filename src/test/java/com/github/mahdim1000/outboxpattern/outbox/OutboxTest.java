@@ -1,4 +1,4 @@
-package org.radargps.outboxpattern.outbox;
+package com.github.mahdim1000.outboxpattern.outbox;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

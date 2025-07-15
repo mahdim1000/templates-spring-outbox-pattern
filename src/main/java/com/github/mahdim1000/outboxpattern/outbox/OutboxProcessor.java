@@ -1,8 +1,7 @@
-package org.radargps.outboxpattern.outbox;
+package com.github.mahdim1000.outboxpattern.outbox;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
 
 @Component
 public class OutboxProcessor {
