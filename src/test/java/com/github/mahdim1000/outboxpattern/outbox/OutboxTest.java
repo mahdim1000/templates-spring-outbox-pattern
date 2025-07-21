@@ -12,6 +12,7 @@ import static org.assertj.core.api.Assertions.*;
 class OutboxTest {
 
     private static final String TEST_TOPIC = "test-topic";
+    private static final String TEST_AGGREGATE_ID = "123";
     private static final String TEST_PAYLOAD = "{\"message\": \"test payload\"}";
     private static final String ERROR_MESSAGE = "Failed to publish message";
 
@@ -21,12 +22,14 @@ class OutboxTest {
 
         @Test
         void shouldCreateOutboxWithValidTopicAndPayload() {
-            Outbox outbox = Outbox.create(TEST_TOPIC, TEST_PAYLOAD);
+            Outbox outbox = Outbox.create(TEST_TOPIC, TEST_AGGREGATE_ID, TEST_PAYLOAD);
 
             assertThat(outbox).isNotNull();
             assertThat(outbox.getId()).isNotNull().isNotEmpty();
             assertThat(outbox.getTopic()).isEqualTo(TEST_TOPIC);
+            assertThat(outbox.getAggregateId()).isEqualTo(TEST_AGGREGATE_ID);
             assertThat(outbox.getPayload()).isEqualTo(TEST_PAYLOAD);
+            assertThat(outbox.getVersion()).isEqualTo(1);
             assertThat(outbox.getStatus()).isEqualTo(Outbox.Status.PENDING);
             assertThat(outbox.getCreatedAt()).isNotNull();
             assertThat(outbox.getRetryCount()).isZero();
@@ -37,8 +40,8 @@ class OutboxTest {
 
         @Test
         void shouldCreateOutboxWithUniqueIds() {
-            Outbox outbox1 = Outbox.create(TEST_TOPIC, TEST_PAYLOAD);
-            Outbox outbox2 = Outbox.create(TEST_TOPIC, TEST_PAYLOAD);
+            Outbox outbox1 = Outbox.create(TEST_TOPIC, TEST_AGGREGATE_ID, TEST_PAYLOAD);
+            Outbox outbox2 = Outbox.create(TEST_TOPIC, TEST_AGGREGATE_ID, TEST_PAYLOAD);
 
             assertThat(outbox1.getId()).isNotEqualTo(outbox2.getId());
         }
@@ -46,7 +49,7 @@ class OutboxTest {
         @Test
         void shouldSetNextRetryAtToCurrentTimeOnCreation() {
             LocalDateTime beforeCreation = LocalDateTime.now().minusSeconds(1);
-            Outbox outbox = Outbox.create(TEST_TOPIC, TEST_PAYLOAD);
+            Outbox outbox = Outbox.create(TEST_TOPIC, TEST_AGGREGATE_ID, TEST_PAYLOAD);
             LocalDateTime afterCreation = LocalDateTime.now().plusSeconds(1);
 
             assertThat(outbox.getCreatedAt()).isBetween(beforeCreation, afterCreation);
@@ -55,7 +58,7 @@ class OutboxTest {
         @Test
         void shouldThrowExceptionOnNullTopic() {
             try {
-                Outbox.create(null, TEST_PAYLOAD);
+                Outbox.create(null, TEST_AGGREGATE_ID, TEST_PAYLOAD);
             } catch (Exception e) {
                 assertThat(e).isInstanceOf(IllegalArgumentException.class);
             }
@@ -64,7 +67,7 @@ class OutboxTest {
         @Test
         void shouldThrowExceptionOnNullPayload() {
             try {
-                Outbox.create(TEST_TOPIC, null);
+                Outbox.create(TEST_TOPIC, TEST_AGGREGATE_ID, null);
             } catch (Exception e) {
                 assertThat(e).isInstanceOf(IllegalArgumentException.class);
             }
@@ -78,7 +81,7 @@ class OutboxTest {
 
         @BeforeEach
         void setUp() {
-            outbox = Outbox.create(TEST_TOPIC, TEST_PAYLOAD);
+            outbox = Outbox.create(TEST_TOPIC, TEST_AGGREGATE_ID, TEST_PAYLOAD);
         }
 
         @Test
@@ -140,7 +143,7 @@ class OutboxTest {
 
         @BeforeEach
         void setUp() {
-            outbox = Outbox.create(TEST_TOPIC, TEST_PAYLOAD);
+            outbox = Outbox.create(TEST_TOPIC, TEST_AGGREGATE_ID, TEST_PAYLOAD);
         }
 
         @Test
