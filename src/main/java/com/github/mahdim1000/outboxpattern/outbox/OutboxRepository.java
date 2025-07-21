@@ -58,4 +58,21 @@ public interface OutboxRepository extends JpaRepository<Outbox, String> {
         AND o.version = :version
     """)
     Optional<Outbox> findByAggregateIdAndVersion(String aggregateId, Integer version);
+
+    // Additional methods for health monitoring and metrics using enum constants
+    @Query("SELECT COUNT(o) FROM Outbox o WHERE o.status = :status")
+    long countByStatus(Outbox.Status status);
+
+    @Query("""
+        SELECT COUNT(o) FROM Outbox o 
+        WHERE o.status = 'FAILED' 
+        AND o.createdAt < :timestamp
+    """)
+    long countFailedOlderThan(LocalDateTime timestamp);
+
+    @Query("SELECT COUNT(o) FROM Outbox o WHERE o.status = 'PENDING'")
+    long countPendingMessages();
+
+    @Query("SELECT COUNT(o) FROM Outbox o WHERE o.status = 'FAILED'")
+    long countFailedMessages();
 }
