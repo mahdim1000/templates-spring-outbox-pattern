@@ -12,8 +12,7 @@ services:
       DB_DATABASE: outbox_enterprise
       DB_USERNAME: outbox_user
       DB_PASSWORD: secure_password
-      OUTBOX_PUBLISHER_TYPE: kafka
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      OUTBOX_PUBLISHER_TYPE: logging
     ports:
       - "8080:8080"
     depends_on:
