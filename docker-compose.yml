@@ -2,28 +2,30 @@ version: '3.8'
 
 services:
   # Main application
-  outbox-app:
-    build: .
-    container_name: outbox-app
-    environment:
-      SPRING_PROFILES_ACTIVE: development
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: outbox_enterprise
-      DB_USERNAME: outbox_user
-      DB_PASSWORD: secure_password
-      OUTBOX_PUBLISHER_TYPE: logging
-    ports:
-      - "8080:8080"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      kafka:
-        condition: service_started
-    volumes:
-      - ./logs:/app/logs
-    networks:
-      - outbox-network
+#  outbox-app:
+#    build: .
+#    container_name: outbox-app
+#    environment:
+#      SPRING_PROFILES_ACTIVE: development
+#      DB_HOST: mysql
+#      DB_PORT: 3306
+#      DB_DATABASE: outbox_enterprise
+#      DB_USERNAME: outbox_user
+#      DB_PASSWORD: secure_password
+#      OUTBOX_PUBLISHER_TYPE: logging
+#    ports:
+#      - "8080:8080"
+#    depends_on:
+#      mysql:
+#        condition: service_healthy
+#      kafka:
+#        condition: service_started
+#      rabbitmq:
+#        condition: service_healthy
+#    volumes:
+#      - ./logs:/app/logs
+#    networks:
+#      - outbox-network
 
   # MySQL Database
   mysql:
@@ -89,6 +91,26 @@ services:
       - "8081:8080"
     depends_on:
       - kafka
+    networks:
+      - outbox-network
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: outbox-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI port
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - outbox-network
 

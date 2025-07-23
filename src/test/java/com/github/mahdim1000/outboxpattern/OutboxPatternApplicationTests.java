@@ -50,5 +50,4 @@ class OutboxPatternApplicationTests {
         assertThat(eventPublisher).isNotNull();
         assertThat(eventPublisher.getPublisherType()).isEqualTo("logging");
     }
-
 }

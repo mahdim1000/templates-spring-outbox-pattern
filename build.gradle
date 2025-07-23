@@ -64,11 +64,26 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
-    // finalizedBy jacocoTestReport  // Disabled due to compatibility issues
+    finalizedBy jacocoTestReport
+    
+    // Configure JVM arguments for Java 21 and Mockito compatibility
+    jvmArgs = [
+        // Enable dynamic agent loading to suppress warnings for Mockito
+        '-XX:+EnableDynamicAgentLoading',
+        // Disable JDK internal warnings that clutter test output
+        '--add-opens=java.base/java.lang=ALL-UNNAMED',
+        '--add-opens=java.base/java.util=ALL-UNNAMED',
+        '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED'
+    ]
+    
+    // Configure system properties for better Java 21 compatibility
+    systemProperties = [
+        'mockito.mock.maker': 'mock-maker-inline'
+    ]
 }
 
 jacoco {
-    toolVersion = "0.8.8"
+    toolVersion = "0.8.13"
 }
 
 jacocoTestReport {

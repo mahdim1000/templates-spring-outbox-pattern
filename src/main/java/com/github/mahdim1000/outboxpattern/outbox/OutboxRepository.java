@@ -75,4 +75,11 @@ public interface OutboxRepository extends JpaRepository<Outbox, String> {
 
     @Query("SELECT COUNT(o) FROM Outbox o WHERE o.status = 'FAILED'")
     long countFailedMessages();
+
+    // Additional methods for testing
+    @Query("SELECT o FROM Outbox o WHERE o.aggregateId = :aggregateId ORDER BY o.version ASC")
+    List<Outbox> findByAggregateIdOrderByVersionAsc(String aggregateId);
+
+    @Query("SELECT o FROM Outbox o WHERE o.aggregateId = :aggregateId")
+    List<Outbox> findByAggregateId(String aggregateId);
 }
