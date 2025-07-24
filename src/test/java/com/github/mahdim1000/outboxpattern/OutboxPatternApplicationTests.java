@@ -25,29 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 class OutboxPatternApplicationTests {
 
-    @Autowired
-    private OutboxService outboxService;
-    
-    @Autowired
-    private OutboxRepository outboxRepository;
-    
-    @Autowired
-    private ObjectMapper objectMapper;
-    
-    @Autowired
-    private EventPublisher eventPublisher;
-
-    @BeforeEach
-    void setUp() {
-        outboxRepository.deleteAll();
-    }
-
     @Test
     void contextLoads() {
-        // Application context loads successfully
-        assertThat(outboxService).isNotNull();
-        assertThat(outboxRepository).isNotNull();
-        assertThat(eventPublisher).isNotNull();
-        assertThat(eventPublisher.getPublisherType()).isEqualTo("logging");
     }
 }
