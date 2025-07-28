@@ -1,242 +1,189 @@
-# Transactional Outbox Pattern Implementation
+# Transactional Outbox Pattern
 
-A robust implementation of the Transactional Outbox Pattern for reliable message publishing with support for multiple message brokers.
+A robust, production-ready implementation of the Transactional Outbox Pattern in Java and Spring Boot. This project ensures reliable message delivery and at-least-once semantics by atomically committing business data and outgoing messages in a single transaction. It supports multiple message brokers and is designed for scalability and resilience.
 
 ## Features
 
-- **Multiple Publisher Support**: Choose between Logging, Kafka, and RabbitMQ publishers
-- **Ordered and Unordered Messages**: Support for both ordered and unordered event publishing
-- **Retry Mechanism**: Configurable retry logic with exponential backoff
-- **Health Monitoring**: Built-in health checks and metrics
-- **Transactional Safety**: Ensures messages are published reliably with database transactions
-- **Version Management**: Support for event versioning and ordered processing
+-   **Multiple Message Broker Support**: Seamlessly switch between **Kafka**, **RabbitMQ**, and a **Logging** publisher for development.
+-   **Transactional Integrity**: Guarantees that messages are published if and only if the business transaction succeeds.
+-   **Concurrent Processing**: Handles high-throughput scenarios with configurable, concurrent message processing.
+-   **Ordered & Unordered Messages**: Supports both strictly ordered and unordered message delivery to meet diverse use cases.
+-   **Configurable Retry Logic**: Includes exponential backoff and a configurable number of retries for handling transient failures.
+-   **Dynamic Topic/Queue Routing**: Publish messages to different topics or queues on a per-message basis.
+-   **Extensible Design**: Easily add new message publishers or customize existing ones.
+-   **Dockerized Environment**: Includes a `docker-compose` setup for all required infrastructure (MySQL, Kafka, RabbitMQ).
 
-## Message Publishers
+## Architecture
 
-### Configuration
+This project implements the **Transactional Outbox Pattern** to solve the dual-write problem, where a service needs to update its own database and publish a message to a message broker as part of a single atomic operation.
 
-Set the publisher type in `application.properties`:
+1.  **Atomic Write**: When a business operation is performed, a corresponding event is created and stored in an `outbox` table within the same database transaction. This ensures that the event is only saved if the business data is successfully committed.
+2.  **Message Relay**: A separate, asynchronous process periodically scans the `outbox` table for unpublished events.
+3.  **Guaranteed Delivery**: The relay reads new events and publishes them to the configured message broker (e.g., Kafka or RabbitMQ).
+4.  **State Tracking**: Upon successful delivery to the broker, the event is marked as processed in the `outbox` table. If delivery fails, a configurable retry mechanism is activated.
 
+This architecture prevents data inconsistencies and ensures that critical events are never lost.
+
+## Getting Started
+
+### Prerequisites
+
+-   Java 21+
+-   Docker and Docker Compose
+-   Gradle 8.x or later
+
+### Quick Start
+
+1.  **Clone the Repository**
+    ```bash
+    git clone https://github.com/mahdim1000/outbox-pattern.git
+    cd outbox-pattern
+    ```
+
+2.  **Start Infrastructure Services**
+    The `docker-compose.yml` file includes all necessary services: MySQL, Kafka, and RabbitMQ.
+    ```bash
+    docker-compose up -d
+    ```
+
+3.  **Run the Application**
+    You can run the application with your desired message publisher by setting the `outbox.publisher.type` property or the `OUTBOX_PUBLISHER_TYPE` environment variable.
+
+    -   **Using Kafka (Default)**
+        ```bash
+        ./gradlew bootRun
+        ```
+    -   **Using RabbitMQ**
+        ```bash
+        OUTBOX_PUBLISHER_TYPE=rabbitmq ./gradlew bootRun
+        ```
+    -   **Using Logging Publisher** (for development/testing)
+        ```bash
+        OUTBOX_PUBLISHER_TYPE=logging ./gradlew bootRun
+        ```
+
+## Configuration
+
+The application's behavior can be customized through `application.properties` or environment variables.
+
+### Publisher Configuration
+
+Set the active publisher and its properties.
+
+| Property                        | Environment Variable                | Description                                         | Default         |
+| ------------------------------- | ----------------------------------- | --------------------------------------------------- | --------------- |
+| `outbox.publisher.type`         | `OUTBOX_PUBLISHER_TYPE`             | The message publisher to use (`kafka`, `rabbitmq`, `logging`) | `kafka`         |
+| `outbox.publisher.default-topic`| `OUTBOX_PUBLISHER_DEFAULT_TOPIC`    | Default topic or queue for messages.                | `outbox-events` |
+| `outbox.publisher.timeout`      | `OUTBOX_PUBLISHER_TIMEOUT`          | Timeout for publishing operations.                  | `PT30S`         |
+
+**Kafka:**
 ```properties
-# Available types: logging, kafka, rabbitmq
-outbox.publisher.type=logging
-```
-
-Or via environment variable:
-```bash
-export OUTBOX_PUBLISHER_TYPE=kafka
-```
-
-### 1. Logging Publisher (Default)
-For development and testing. Messages are logged only.
-
-```properties
-outbox.publisher.type=logging
-```
-
-### 2. Kafka Publisher
-Publishes messages to Apache Kafka topics.
-
-```properties
-outbox.publisher.type=kafka
 spring.kafka.bootstrap-servers=localhost:9092
 ```
 
-### 3. RabbitMQ Publisher  
-Publishes messages to RabbitMQ queues.
-
+**RabbitMQ:**
 ```properties
-outbox.publisher.type=rabbitmq
 spring.rabbitmq.host=localhost
 spring.rabbitmq.port=5672
 spring.rabbitmq.username=admin
 spring.rabbitmq.password=admin
 ```
 
-## Getting Started
+### Processing Configuration
 
-### Prerequisites
+Control how the outbox processor handles events.
 
-- Java 21+
-- Docker and Docker Compose
-- Gradle 8.x
+| Property                        | Environment Variable                 | Description                                    | Default   |
+| ------------------------------- | ------------------------------------ | ---------------------------------------------- | --------- |
+| `outbox.processing.batch-size`  | `OUTBOX_PROCESSING_BATCH_SIZE`       | Max number of messages to process per run.     | `100`     |
+| `outbox.processing.publish-rate`| `OUTBOX_PROCESSING_PUBLISH_RATE`     | Frequency of the outbox processing job.        | `PT10S`   |
+| `outbox.processing.lock-timeout`| `OUTBOX_PROCESSING_LOCK_TIMEOUT`     | How long to lock an event during processing.   | `PT30S`   |
 
-### Quick Start
+### Retry Configuration
 
-1. **Clone the repository**
-```bash
-git clone <repository-url>
-cd outbox-pattern
-```
+Configure the retry mechanism for failed publishing attempts.
 
-2. **Start infrastructure services**
-```bash
-docker-compose up -d mysql kafka rabbitmq
-```
-
-3. **Run the application with different publishers**
-
-**Using Logging Publisher (default):**
-```bash
-./gradlew bootRun
-```
-
-**Using Kafka Publisher:**
-```bash
-OUTBOX_PUBLISHER_TYPE=kafka ./gradlew bootRun
-```
-
-**Using RabbitMQ Publisher:**
-```bash
-OUTBOX_PUBLISHER_TYPE=rabbitmq ./gradlew bootRun
-```
+| Property                     | Environment Variable              | Description                               | Default |
+| ---------------------------- | --------------------------------- | ----------------------------------------- | ------- |
+| `outbox.retry.max-retries`   | `OUTBOX_RETRY_MAX_RETRIES`        | Max number of retry attempts per message. | `5`     |
+| `outbox.retry.initial-delay` | `OUTBOX_RETRY_INITIAL_DELAY`      | Initial delay before the first retry.     | `PT1M`  |
 
 ## API Endpoints
 
-### Demo Controller
+Use the following endpoints to interact with the service and create outbox events.
 
-**Create Unordered Message:**
+### Create an Unordered Message
+
+Publishes a message without guaranteeing the order of delivery.
+
+-   **URL**: `/api/demo/unordered-message`
+-   **Method**: `POST`
+-   **Query Parameters**:
+    -   `topic` (optional, default: `demo-topic`): The destination topic or queue.
+    -   `aggregateId` (required): A unique identifier for the aggregate root (e.g., a user ID).
+    -   `message` (required): The message content.
+    -   `headers` (required): A comma-separated list of key-value pairs (e.g., `key1=value1,key2=value2`).
+    -   `retryable` (optional, default: `false`): Whether the message should be retried on failure.
+
+**Example Request:**
 ```bash
-curl -X POST "http://localhost:8080/api/demo/unordered-message?topic=test-topic&message=Hello World"
+curl -X POST "http://localhost:8080/api/demo/unordered-message?topic=user-events&aggregateId=user-123&message=User updated profile&headers=source=api,correlationId=abc-123&retryable=true"
 ```
 
-**Create Ordered Message:**
+### Create an Ordered Message
+
+Publishes a message while preserving the order of delivery based on the `aggregateId`. Messages with the same `aggregateId` are processed sequentially.
+
+-   **URL**: `/api/demo/ordered-message`
+-   **Method**: `POST`
+-   **Query Parameters**:
+    -   `topic` (optional, default: `demo-topic`): The destination topic or queue.
+    -   `aggregateId` (required): The identifier for the aggregate to ensure ordering.
+    -   `message` (required): The message content.
+    -   `headers` (required): A comma-separated list of key-value pairs.
+    -   `retryable` (optional, default: `false`): Whether the message should be retried on failure.
+
+**Example Request:**
 ```bash
-curl -X POST "http://localhost:8080/api/demo/ordered-message?topic=test-topic&aggregateId=user-123&message=User Created"
-```
-
-**Get Metrics:**
-```bash
-curl -X GET "http://localhost:8080/api/demo/metrics"
-```
-
-**Get Publisher Info:**
-```bash
-curl -X GET "http://localhost:8080/api/demo/publisher-info"
-```
-
-**Process Pending Messages:**
-```bash
-curl -X POST "http://localhost:8080/api/demo/process-pending"
-```
-
-## Testing Different Publishers
-
-### 1. Test with Kafka
-
-```bash
-# Start services
-docker-compose up -d
-
-# Run app with Kafka publisher
-OUTBOX_PUBLISHER_TYPE=kafka ./gradlew bootRun
-
-# Create a message
-curl -X POST "http://localhost:8080/api/demo/unordered-message?topic=test-events&message=Testing Kafka"
-
-# Process messages
-curl -X POST "http://localhost:8080/api/demo/process-pending"
-
-# Check Kafka UI at http://localhost:8081
-```
-
-### 2. Test with RabbitMQ
-
-```bash
-# Start services  
-docker-compose up -d
-
-# Run app with RabbitMQ publisher
-OUTBOX_PUBLISHER_TYPE=rabbitmq ./gradlew bootRun
-
-# Create a message
-curl -X POST "http://localhost:8080/api/demo/unordered-message?topic=test-queue&message=Testing RabbitMQ"
-
-# Process messages
-curl -X POST "http://localhost:8080/api/demo/process-pending"
-
-# Check RabbitMQ Management UI at http://localhost:15672 (admin/admin)
-```
-
-### 3. Test with Logging
-
-```bash
-# Run app with logging publisher (default)
-./gradlew bootRun
-
-# Create a message  
-curl -X POST "http://localhost:8080/api/demo/unordered-message?message=Testing Logging"
-
-# Process messages and check logs
-curl -X POST "http://localhost:8080/api/demo/process-pending"
+curl -X POST "http://localhost:8080/api/demo/ordered-message?topic=order-events&aggregateId=order-456&message=Order created&headers=source=api,correlationId=xyz-789&retryable=true"
 ```
 
 ## Running Tests
 
-```bash
-# Run all tests
-./gradlew test
+The project includes a comprehensive test suite covering unit and integration tests.
 
-# Run tests with coverage
-./gradlew test jacocoTestReport
-```
+-   **Run All Tests**:
+    ```bash
+    ./gradlew test
+    ```
+-   **Run Tests with Coverage Report**:
+    This command generates a JaCoCo test coverage report in `build/reports/jacoco/test/html/index.html`.
+    ```bash
 
-### Test Different Publishers
-
-The tests include unit tests for each publisher and integration tests:
-
-- `RabbitMQEventPublisherTest` - Tests RabbitMQ publisher functionality
-- `KafkaEventPublisherTest` - Tests Kafka publisher functionality  
-- `OutboxIntegrationTest` - Integration tests for the outbox pattern
+    ./gradlew test jacocoTestReport
+    ```
 
 ## Docker Services
 
-The `docker-compose.yml` includes:
+The included `docker-compose.yml` provides the following services:
 
-- **MySQL**: Database for outbox table
-- **Kafka + Zookeeper**: Message streaming platform
-- **Kafka UI**: Web interface for Kafka (port 8081)
-- **RabbitMQ**: Message broker with management interface (port 15672)
-
-### Service URLs:
-- Application: http://localhost:8080
-- Kafka UI: http://localhost:8081  
-- RabbitMQ Management: http://localhost:15672 (admin/admin)
-
-## Configuration
-
-Key configuration options in `application.properties`:
-
-```properties
-# Publisher selection
-outbox.publisher.type=logging|kafka|rabbitmq
-
-# Processing configuration
-outbox.processing.batch-size=500
-outbox.processing.publish-rate=PT10S
-
-# Retry configuration
-outbox.retry.max-retries=5
-outbox.retry.initial-delay=PT1M
-```
-
-## Architecture
-
-The implementation follows the Transactional Outbox Pattern:
-
-1. **Write to Database**: Messages are written to the outbox table in the same transaction as business data
-2. **Background Processing**: A scheduled process reads pending messages from the outbox
-3. **Message Publishing**: Messages are published to the configured message broker
-4. **Status Tracking**: Message status is updated upon successful publishing
+| Service               | Description                           | URL                                         | Credentials     |
+| --------------------- | ------------------------------------- | ------------------------------------------- | --------------- |
+| **MySQL**             | Database for the `outbox` table.      | `jdbc:mysql://localhost:3306/outboxdb`      | `user`/`password` |
+| **Kafka & Zookeeper** | Message streaming platform.           | `localhost:9092`                            | -               |
+| **Kafka UI**          | Web interface for managing Kafka.     | [http://localhost:8081](http://localhost:8081) | -               |
+| **RabbitMQ**          | Message broker with management UI.    | [http://localhost:15672](http://localhost:15672) | `admin`/`admin`   |
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make changes and add tests
-4. Run tests: `./gradlew test`
-5. Submit a pull request
+Contributions are welcome! Please follow these steps:
+
+1.  Fork the repository.
+2.  Create a new feature branch (`git checkout -b feature/your-feature`).
+3.  Make your changes and add tests.
+4.  Ensure all tests pass (`./gradlew test`).
+5.  Submit a pull request with a clear description of your changes.
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
