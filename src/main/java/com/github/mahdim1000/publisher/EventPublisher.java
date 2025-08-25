@@ -1,4 +1,4 @@
-package com.github.mahdim1000.outboxpattern.publisher;
+package com.github.mahdim1000.publisher;
 
 /**
  * Interface for publishing events to external message brokers.

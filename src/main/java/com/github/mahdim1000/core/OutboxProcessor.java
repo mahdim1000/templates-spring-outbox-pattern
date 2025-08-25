@@ -1,6 +1,6 @@
-package com.github.mahdim1000.outboxpattern.outbox;
+package com.github.mahdim1000.core;
 
-import com.github.mahdim1000.outboxpattern.config.OutboxProperties;
+import com.github.mahdim1000.config.OutboxProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -10,6 +10,10 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * Scheduled processor for outbox events.
+ * Runs periodically to process pending and failed messages.
+ */
 @Component
 @ConditionalOnProperty(name = "outbox.processing.enabled", havingValue = "true", matchIfMissing = true)
 public class OutboxProcessor {
@@ -17,7 +21,6 @@ public class OutboxProcessor {
     private static final Logger log = LoggerFactory.getLogger(OutboxProcessor.class);
     
     private final OutboxService outboxService;
-    private final OutboxProperties properties;
     
     // Locks to prevent overlapping processing
     private final ReentrantLock pendingProcessingLock = new ReentrantLock();
@@ -25,54 +28,41 @@ public class OutboxProcessor {
 
     public OutboxProcessor(OutboxService outboxService, OutboxProperties properties) {
         this.outboxService = outboxService;
-        this.properties = properties;
     }
 
     @Scheduled(fixedDelayString = "${outbox.processing.publish-rate:PT10S}")
     @Async("outboxTaskExecutor")
     public void processPendingMessages() {
         if (!pendingProcessingLock.tryLock()) {
-            log.debug("Pending message processing already in progress, skipping...");
+            log.debug("Skipping pending message processing - already in progress");
             return;
         }
         
         try {
-            long startTime = System.currentTimeMillis();
             log.debug("Starting pending message processing");
-            
-            outboxService.processPendingMessage();
-            
-            long processingTime = System.currentTimeMillis() - startTime;
-            if (processingTime > 5000) { // 5 seconds warning threshold
-                log.warn("Pending message processing took {}ms, consider increasing processing capacity", processingTime);
-            }
-            
+            outboxService.processPendingMessages();
+            log.debug("Completed pending message processing");
         } catch (Exception e) {
-            log.error("Error during pending message processing", e);
+            log.error("Error during pending message processing: {}", e.getMessage(), e);
         } finally {
             pendingProcessingLock.unlock();
         }
     }
 
-    @Scheduled(fixedDelayString = "${outbox.retry.initial-delay:PT1M}")
+    @Scheduled(fixedDelayString = "${outbox.processing.retry-rate:PT30S}")
     @Async("outboxTaskExecutor")
     public void processFailedMessages() {
         if (!failedProcessingLock.tryLock()) {
-            log.debug("Failed message processing already in progress, skipping...");
+            log.debug("Skipping failed message processing - already in progress");
             return;
         }
         
         try {
-            long startTime = System.currentTimeMillis();
             log.debug("Starting failed message processing");
-            
-            outboxService.processFailedMessage();
-            
-            long processingTime = System.currentTimeMillis() - startTime;
-            log.debug("Failed message processing completed in {}ms", processingTime);
-            
+            outboxService.processFailedMessages();
+            log.debug("Completed failed message processing");
         } catch (Exception e) {
-            log.error("Error during failed message processing", e);
+            log.error("Error during failed message processing: {}", e.getMessage(), e);
         } finally {
             failedProcessingLock.unlock();
         }

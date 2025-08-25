@@ -1,5 +1,7 @@
-package com.github.mahdim1000.outboxpattern.publisher;
+package com.github.mahdim1000.publisher;
 
+import com.github.mahdim1000.api.EventPublisher;
+import com.github.mahdim1000.api.PublishingException;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.slf4j.Logger;
@@ -14,16 +16,17 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Kafka implementation of EventPublisher
+ * Kafka implementation of EventPublisher.
+ * Publishes events to Apache Kafka topics.
  */
 @Component
 @ConditionalOnProperty(name = "outbox.publisher.type", havingValue = "kafka")
 public class KafkaEventPublisher implements EventPublisher {
     
     private static final Logger log = LoggerFactory.getLogger(KafkaEventPublisher.class);
+    private static final long SEND_TIMEOUT_SECONDS = 30;
     
     private final KafkaTemplate<String, String> kafkaTemplate;
-    private static final long SEND_TIMEOUT_SECONDS = 30;
     
     public KafkaEventPublisher(KafkaTemplate<String, String> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
@@ -40,24 +43,17 @@ public class KafkaEventPublisher implements EventPublisher {
             CompletableFuture<SendResult<String, String>> future;
             
             if (headers != null && !headers.isEmpty()) {
-                // Create ProducerRecord with headers
                 ProducerRecord<String, String> record = new ProducerRecord<>(topic, payload);
                 headers.forEach((key, value) -> 
                     record.headers().add(new RecordHeader(key, value.getBytes())));
                 future = kafkaTemplate.send(record);
             } else {
-                // Send without headers
                 future = kafkaTemplate.send(topic, payload);
             }
             
-            // Wait for the result with timeout
             SendResult<String, String> result = future.get(SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            if (result.getRecordMetadata() != null) {
-                log.debug("Successfully published message to Kafka topic: {} at offset: {}", 
-                    topic, result.getRecordMetadata().offset());
-            } else {
-                log.debug("Successfully published message to Kafka topic: {}", topic);
-            }
+            log.debug("Successfully published message to Kafka topic '{}' at offset: {}", 
+                topic, result.getRecordMetadata().offset());
             
         } catch (Exception e) {
             log.error("Failed to publish message to Kafka topic '{}': {}", topic, e.getMessage(), e);
@@ -68,7 +64,6 @@ public class KafkaEventPublisher implements EventPublisher {
     @Override
     public boolean isHealthy() {
         try {
-            // Simple health check by checking if we can get metrics
             kafkaTemplate.metrics();
             return true;
         } catch (Exception e) {
@@ -78,7 +73,7 @@ public class KafkaEventPublisher implements EventPublisher {
     }
     
     @Override
-    public String getPublisherType() {
+    public String getType() {
         return "kafka";
     }
-} 
+}

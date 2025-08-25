@@ -1,4 +1,4 @@
-package com.github.mahdim1000.outboxpattern.config;
+package com.github.mahdim1000.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;

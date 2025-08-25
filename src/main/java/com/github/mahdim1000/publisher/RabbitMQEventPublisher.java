@@ -1,9 +1,10 @@
-package com.github.mahdim1000.outboxpattern.publisher;
+package com.github.mahdim1000.publisher;
 
+import com.github.mahdim1000.api.EventPublisher;
+import com.github.mahdim1000.api.PublishingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.MessageProperties;
-import org.springframework.amqp.core.MessagePropertiesBuilder;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -11,7 +12,8 @@ import org.springframework.stereotype.Component;
 import java.util.Map;
 
 /**
- * RabbitMQ implementation of EventPublisher
+ * RabbitMQ implementation of EventPublisher.
+ * Publishes events to RabbitMQ queues/exchanges.
  */
 @Component
 @ConditionalOnProperty(name = "outbox.publisher.type", havingValue = "rabbitmq")
@@ -33,19 +35,17 @@ public class RabbitMQEventPublisher implements EventPublisher {
     @Override
     public void publish(String topic, String payload, Map<String, String> headers) throws PublishingException {
         try {
-            MessageProperties properties = MessagePropertiesBuilder.newInstance()
-                    .setContentType(MessageProperties.CONTENT_TYPE_TEXT_PLAIN)
-                    .build();
-            
-            // Add custom headers
             if (headers != null && !headers.isEmpty()) {
-                headers.forEach(properties::setHeader);
+                MessageProperties messageProperties = new MessageProperties();
+                headers.forEach(messageProperties::setHeader);
+                
+                org.springframework.amqp.core.Message message = 
+                    new org.springframework.amqp.core.Message(payload.getBytes(), messageProperties);
+                rabbitTemplate.send(topic, message);
+            } else {
+                rabbitTemplate.convertAndSend(topic, payload);
             }
             
-            org.springframework.amqp.core.Message message = 
-                new org.springframework.amqp.core.Message(payload.getBytes(), properties);
-            
-            rabbitTemplate.send(topic, message);
             log.debug("Successfully published message to RabbitMQ topic: {}", topic);
             
         } catch (Exception e) {
@@ -57,8 +57,8 @@ public class RabbitMQEventPublisher implements EventPublisher {
     @Override
     public boolean isHealthy() {
         try {
-            // Simple health check by checking if we can get connection factory
-            rabbitTemplate.getConnectionFactory().createConnection().close();
+            // Simple health check by checking connection
+            rabbitTemplate.getConnectionFactory().createConnection().isOpen();
             return true;
         } catch (Exception e) {
             log.warn("RabbitMQ health check failed: {}", e.getMessage());
@@ -67,7 +67,7 @@ public class RabbitMQEventPublisher implements EventPublisher {
     }
     
     @Override
-    public String getPublisherType() {
+    public String getType() {
         return "rabbitmq";
     }
-} 
+}

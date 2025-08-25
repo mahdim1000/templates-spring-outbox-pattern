@@ -1,17 +1,21 @@
 plugins {
-    id 'java'
+    id 'java-library'
+    id 'maven-publish'
     id 'org.springframework.boot' version '3.5.3'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'jacoco'
 }
 
-group = 'com.enterprise'
+group = 'com.github.mahdim1000'
 version = '1.0.0'
+description = 'A simple, production-ready Transactional Outbox Pattern library for Spring Boot'
 
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
     }
+    withSourcesJar()
+    withJavadocJar()
 }
 
 configurations {
@@ -25,32 +29,24 @@ repositories {
 }
 
 dependencies {
-    // Spring Boot Starters
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.boot:spring-boot-starter-actuator'
-    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    // Core Spring Boot dependencies
+    api 'org.springframework.boot:spring-boot-starter-data-jpa'
+    api 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
     
-    // Messaging Support
-    implementation 'org.springframework.kafka:spring-kafka'
-    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+    // Optional messaging dependencies (users choose what they need)
+    compileOnly 'org.springframework.kafka:spring-kafka'
+    compileOnly 'org.springframework.boot:spring-boot-starter-amqp'
     
-    // Database
-    runtimeOnly 'com.mysql:mysql-connector-j'
-    runtimeOnly 'org.postgresql:postgresql'
-    
-    // Utilities
+    // Core utilities
     implementation 'com.github.f4b6a3:ulid-creator:5.2.3'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     
-    // Development & Annotations
+    // Configuration processing
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
     
-    // Validation
-    implementation 'org.springframework.boot:spring-boot-starter-validation'
-    
-    // Testing
+    // Testing dependencies
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
@@ -60,28 +56,87 @@ dependencies {
     testImplementation 'org.testcontainers:kafka'
     testRuntimeOnly 'com.h2database:h2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    
+    // Example dependencies (for demonstration only)
+    compileOnly 'org.springframework.boot:spring-boot-starter-web'
+    compileOnly 'org.springframework.boot:spring-boot-starter-actuator'
 }
 
+// Configure the library JAR (exclude Spring Boot plugin's executable JAR)
+jar {
+    enabled = true
+    archiveClassifier = '' // Remove the default classifier
+}
+
+// Disable the bootJar task since we're building a library
+bootJar {
+    enabled = false
+}
+
+// Configure source and javadoc JARs
+sourcesJar {
+    from sourceSets.main.allSource
+}
+
+javadocJar {
+    from javadoc
+}
+
+// Publishing configuration
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            
+            pom {
+                name = 'Outbox Pattern Library'
+                description = 'A simple, production-ready Transactional Outbox Pattern library for Spring Boot'
+                url = 'https://github.com/yourusername/outbox-pattern-library'
+                
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                
+                developers {
+                    developer {
+                        id = 'maintainer'
+                        name = 'Library Maintainer'
+                        email = 'maintainer@example.com'
+                    }
+                }
+                
+                scm {
+                    connection = 'scm:git:git://github.com/yourusername/outbox-pattern-library.git'
+                    developerConnection = 'scm:git:ssh://github.com:yourusername/outbox-pattern-library.git'
+                    url = 'https://github.com/yourusername/outbox-pattern-library'
+                }
+            }
+        }
+    }
+}
+
+// Test configuration
 tasks.named('test') {
     useJUnitPlatform()
     finalizedBy jacocoTestReport
     
     // Configure JVM arguments for Java 21 and Mockito compatibility
     jvmArgs = [
-        // Enable dynamic agent loading to suppress warnings for Mockito
         '-XX:+EnableDynamicAgentLoading',
-        // Disable JDK internal warnings that clutter test output
         '--add-opens=java.base/java.lang=ALL-UNNAMED',
         '--add-opens=java.base/java.util=ALL-UNNAMED',
         '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED'
     ]
     
-    // Configure system properties for better Java 21 compatibility
     systemProperties = [
         'mockito.mock.maker': 'mock-maker-inline'
     ]
 }
 
+// Jacoco configuration
 jacoco {
     toolVersion = "0.8.13"
 }
@@ -92,4 +147,12 @@ jacocoTestReport {
         xml.required = true
         html.required = true
     }
+}
+
+// Javadoc configuration
+javadoc {
+    if (JavaVersion.current().isJava9Compatible()) {
+        options.addBooleanOption('html5', true)
+    }
+    options.addStringOption('Xdoclint:none', '-quiet')
 }
